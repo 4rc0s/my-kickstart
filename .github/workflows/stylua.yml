@@ -1,17 +1,28 @@
 # Check Lua Formatting
 name: Check Lua Formatting
-on: pull_request_target
+
+# Runs on pushes to master as well as pull requests: work on this repo lands as direct commits to
+# master, so a pull_request-only trigger would never fire.
+#
+# `pull_request`, not `pull_request_target`. The latter runs in the base repo's context with a
+# write-scoped token and access to secrets; combining it with a checkout of the PR's head commit
+# (as this workflow used to) is the "pwn request" pattern, which hands repository credentials to
+# untrusted code. `pull_request` runs the fork's code with a read-only token instead.
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   stylua-check:
-    if: github.repository == 'nvim-lua/kickstart.nvim'
     name: Stylua Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
       - name: Stylua Check
         uses: JohnnyMorganz/stylua-action@v4
         with:
