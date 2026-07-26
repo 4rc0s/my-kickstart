@@ -48,8 +48,11 @@ vim.api.nvim_create_autocmd('LspAttach', {
   end,
 })
 
+-- lspconfig ships a `stylua` server (`stylua --lsp`), but it is deliberately not enabled here:
+-- conform already runs the stylua binary for lua via formatters_by_ft, so enabling it would attach
+-- a second stylua process to every Lua buffer to do work that is already done. It stays in
+-- mason_tools below — conform needs the executable, just not the language server.
 local servers = {
-  stylua = {},
   lua_ls = {
     on_init = function(client)
       client.server_capabilities.documentFormattingProvider = false
