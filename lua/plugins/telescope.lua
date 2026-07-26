@@ -90,7 +90,7 @@ vim.keymap.set(
 )
 
 vim.keymap.set('n', '<leader>sn', pick('find_files', { cwd = vim.fn.stdpath 'config', follow = true }), { desc = '[S]earch [N]eovim files' })
-vim.keymap.set('n', '<C-p>', pick 'git_files', { desc = 'Search [G]it Files' })
+vim.keymap.set('n', '<C-p>', pick 'git_files', { desc = 'Search Git Files' })
 vim.keymap.set('n', '<leader>pf', function()
   T.load()
   require('telescope.builtin').grep_string { search = vim.fn.input 'Grep > ' }

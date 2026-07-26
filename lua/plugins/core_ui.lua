@@ -82,6 +82,7 @@ require('which-key').setup {
     { '<leader>t', group = '[T]oggle' },
     { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
     { '<leader>d', group = '[D]iagnostics' },
+    { '<leader>l', group = '[L]ua' },
     { '<leader>p', group = '[P]ackages' },
     { 'gr', group = 'LSP Actions', mode = { 'n' } },
   },

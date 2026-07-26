@@ -113,18 +113,23 @@ do
   vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
 
   -- File/Buffer/Window Management
+  -- Save-and-quit is <leader>W, not <leader>wq: a mapping that is a prefix of another waits out
+  -- 'timeoutlen' before firing, which made every <leader>w save feel sluggish. The native `ZZ`
+  -- does the same thing and is untouched.
   vim.keymap.set('n', '<leader>w', ':w<CR>', { desc = 'Save current file' })
+  vim.keymap.set('n', '<leader>W', ':wq<CR>', { desc = 'Save and quit current file' })
   vim.keymap.set('n', '<leader>q', ':q<CR>', { desc = 'Close current window/buffer' })
   vim.keymap.set('n', '<leader>Q', ':qa!<CR>', { desc = 'Quit Neovim without saving' })
-  vim.keymap.set('n', '<leader>wq', ':wq<CR>', { desc = 'Save and quit current file' })
   vim.keymap.set('n', '<leader>bd', ':bd<CR>', { desc = 'Close current buffer' })
   vim.keymap.set('n', '<leader>bn', ':bn<CR>', { desc = 'Next buffer' })
   vim.keymap.set('n', '<leader>bp', ':bp<CR>', { desc = 'Previous buffer' })
   vim.keymap.set('n', '<leader>bl', ':ls<CR>', { desc = 'List buffers' })
 
   -- Lua Execution
-  vim.keymap.set('n', '<leader><leader>e', '<cmd>.lua<CR>', { desc = 'Execute current line' })
-  vim.keymap.set('n', '<leader><leader>x', '<cmd>source %<CR>', { desc = 'Execute current file' })
+  -- Under <leader>l rather than <leader><leader>: any mapping that is a prefix of another waits out
+  -- 'timeoutlen' before firing, and <leader><leader> itself is the buffer picker (plugins/telescope.lua).
+  vim.keymap.set('n', '<leader>le', '<cmd>.lua<CR>', { desc = '[L]ua execute current lin[e]' })
+  vim.keymap.set('n', '<leader>lx', '<cmd>source %<CR>', { desc = '[L]ua e[x]ecute current file' })
 
   -- Split Resizing
   vim.keymap.set('n', '<M-,>', '<c-w>5<')
