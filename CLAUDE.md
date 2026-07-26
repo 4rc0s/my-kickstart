@@ -129,6 +129,39 @@ for _, mod in ipairs {
 } do
 ```
 
+### Lazy-loading a plugin
+
+`vim.pack.add` puts a plugin on the runtimepath immediately. Passing a `load` callback makes the
+caller fully responsible for loading, which `lua/whipsmart/lazy.lua` wraps:
+
+```lua
+local T = require('whipsmart.lazy').new({ 'https://github.com/folke/trouble.nvim' }, function()
+  require('trouble').setup {}
+end)
+
+T.cmd 'Trouble'                                      -- stub command; loads, then re-runs for real
+T.map('n', '<leader>xx', 'Trouble diagnostics toggle', { desc = '...' })
+T.load()                                             -- or force it directly
+```
+
+Notes:
+
+- The `rhs` given to `T.map` is a **plain Ex command**, not keymap notation. `'<cmd>Foo<cr>'` would
+  be passed to `vim.cmd` and fail with `E488: Trailing characters`; the helper raises an error
+  rather than let that happen silently.
+- Only stub a command the plugin creates in its own `plugin/` directory (Telescope does; Trouble
+  creates `:Trouble` from `setup`, so the stub only matters before the first load).
+- Deferred plugins still count as **active** to `vim.pack.get`, because `vim.pack` registers them
+  before invoking `load`. They will not show up as orphans in the inactive list.
+- `vim.cmd.packadd` at runtime does not source `after/plugin/`. None of the currently deferred
+  plugins ship one; check before deferring a plugin that does.
+
+**When not to.** A plugin that must register autocmds at startup to do its job cannot be deferred
+without re-implementing those triggers. `oil.nvim` is the standing example: its `setup` sets
+`vim.g.loaded_netrw`, and installs the `BufNew` / `BufEnter` / `BufReadCmd` handlers that make
+`nvim <dir>` open oil instead of netrw. Deferring it would mean owning that hijack, to save ~5ms.
+It is loaded eagerly on purpose — don't "optimize" it without reading this paragraph.
+
 ### Removing a plugin (and cleaning up orphans)
 
 Deleting a plugin's config does **not** remove it from disk. vim.pack keeps it as an *inactive*
