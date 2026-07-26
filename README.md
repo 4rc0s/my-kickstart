@@ -167,14 +167,25 @@ LSP configuration lives in `lua/plugins/lsp.lua` and has two separate lists that
 
 > **Note:** lspconfig names and Mason names often differ. Look up the correct Mason name at [mason-registry](https://mason-registry.dev/registry/list) and the lspconfig name in the [lspconfig server list](https://github.com/neovim/nvim-lspconfig/blob/master/doc/configs.md).
 
-### Enabling Format-on-Save
-In `lua/plugins/format.lua`, add filetypes to `fmt_on_save_fts`:
+### Format-on-Save
+Format-on-save is **on for every filetype** — there is nothing to opt into. `lua/plugins/format.lua` sets:
 
 ```lua
-local fmt_on_save_fts = {
-  lua = true,
-  go  = true,
-}
+format_on_save = { timeout_ms = 1000, lsp_format = 'fallback' },
+```
+
+`lsp_format = 'fallback'` means a buffer with no entry in `formatters_by_ft` is still formatted by its
+language server, if one is attached. To add a dedicated formatter for a filetype, add it to
+`formatters_by_ft` (and to `mason_tools` in `lsp.lua` if it needs installing).
+
+To turn it off — globally, per buffer, or per filetype — swap the table for a function; conform skips
+the save-format when it returns `nil`:
+
+```lua
+format_on_save = function(bufnr)
+  if vim.g.disable_autoformat or vim.b[bufnr].disable_autoformat then return end
+  return { timeout_ms = 1000, lsp_format = 'fallback' }
+end,
 ```
 
 ### Machine-Specific Settings

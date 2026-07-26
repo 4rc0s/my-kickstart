@@ -103,7 +103,19 @@ System-installed LSPs (not managed by Mason) are added at the bottom of `lsp.lua
 Add to `formatters_by_ft` in `lua/plugins/format.lua`. Also add the Mason package name to
 `mason_tools` in `lsp.lua` if it needs auto-installation.
 
-To enable format-on-save for a filetype, add it to `fmt_on_save_fts` in `format.lua`.
+Format-on-save needs no registration: `format_on_save = { timeout_ms = 1000, lsp_format = 'fallback' }`
+applies to **every** filetype, and falls back to the LSP formatter when conform has none configured
+for the buffer. There is no per-filetype opt-in list.
+
+To make it conditional, replace that table with a function — conform skips the save-format when it
+returns `nil`:
+
+```lua
+format_on_save = function(bufnr)
+  if vim.g.disable_autoformat or vim.b[bufnr].disable_autoformat then return end
+  return { timeout_ms = 1000, lsp_format = 'fallback' }
+end,
+```
 
 ### Adding treesitter parsers
 
