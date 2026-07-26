@@ -109,6 +109,11 @@ require('oil').setup {
 }
 vim.keymap.set('n', '-', '<cmd>Oil<cr>', { desc = 'Open parent directory' })
 
+-- Shared library, loaded eagerly rather than with Telescope. todo-comments below is loaded at
+-- startup and needs plenary for :TodoQuickFix / :TodoLocList / :TodoTelescope, which fail with
+-- "search requires plenary.nvim" if it is only on the runtimepath once Telescope has loaded.
+vim.pack.add { gh 'nvim-lua/plenary.nvim' }
+
 -- TODO comments
 vim.pack.add { gh 'folke/todo-comments.nvim' }
 require('todo-comments').setup { signs = false }

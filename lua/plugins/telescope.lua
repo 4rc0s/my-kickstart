@@ -9,8 +9,9 @@ local lazy = require 'whipsmart.lazy'
 -- rather than at startup — see lua/whipsmart/lazy.lua.
 -- ============================================================
 
+-- plenary is not listed here: it is a shared library that eagerly-loaded plugins need too, so it is
+-- added in plugins/core_ui.lua. Deferring it with Telescope broke todo-comments' search commands.
 local telescope_plugins = {
-  gh 'nvim-lua/plenary.nvim',
   gh 'nvim-telescope/telescope.nvim',
   gh 'nvim-telescope/telescope-ui-select.nvim',
 }
@@ -99,11 +100,14 @@ end, { desc = '[P]roject [F]ind (grep with input)' })
 -- The ui-select extension replaces `vim.ui.select` when Telescope loads. Until then, stand in for
 -- it so the first caller (LSP code actions, for example) still gets the Telescope picker rather
 -- than the built-in prompt. Falls back to the original if the extension did not take over.
+--
+-- The restore happens *before* T.load(), not after: that leaves no reference to this function on
+-- `vim.ui.select`, so if another plugin has wrapped it since startup, its wrapper cannot route back
+-- in here. Restoring afterwards instead made that case an infinite tail-call loop, which hangs
+-- Neovim outright rather than raising a stack overflow.
 local builtin_select = vim.ui.select
-local shim
-shim = function(...)
+vim.ui.select = function(...)
+  vim.ui.select = builtin_select
   T.load()
-  if vim.ui.select == shim then vim.ui.select = builtin_select end
   return vim.ui.select(...)
 end
-vim.ui.select = shim
