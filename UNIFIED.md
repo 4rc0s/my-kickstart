@@ -57,16 +57,23 @@ for a semver range, or `version = 'main'` for a branch. Pass an explicit `name` 
 path segment is generic. See [CLAUDE.md](CLAUDE.md) for LSP servers, formatters, and treesitter
 parsers, which have their own registration lists, and for how to remove a plugin again.
 
-## Migration Guide (Hecate -> Whipsmart)
+## Onboarding a Machine
 
-The goal is to move all machine-specific logic out of the main config and into `lua/local.lua`.
+Applies to any machine, new or being migrated. The goal is that all machine-specific logic lives
+in `lua/local.lua` rather than in the tracked config — see the roster at the bottom for which
+machines are done.
 
-### Step 1: Initialize local.lua
+### Step 1: Clone and initialize local.lua
 ```bash
+git clone https://github.com/4rc0s/whipsmart.nvim.git ~/.config/nvim
 cp ~/.config/nvim/lua/local.lua.example ~/.config/nvim/lua/local.lua
 ```
 
-### Step 2: LSP Configuration
+Then launch Neovim. Plugins listed in the lockfile but missing from disk are installed at their
+locked revision on startup, after a confirmation prompt. Run `:checkhealth whipsmart` afterwards
+to see which external tools and runtimes the machine is missing.
+
+### Step 2: LSP — nothing to configure per machine
 LSP is **not** configured per machine. Servers are declared centrally in `lua/plugins/lsp.lua`,
 which keeps two lists that must both be updated: `servers` (lspconfig names, passed to
 `vim.lsp.config` / `vim.lsp.enable`) and `mason_tools` (Mason registry names). The two naming
