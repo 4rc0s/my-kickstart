@@ -16,7 +16,8 @@ Neovim 0.12+ `vim.pack` system. It replaced a kickstart.nvim + Lazy.nvim setup o
 ## Plugin Management (inside Neovim)
 
 - `<leader>pm` — open the **Package Manager Menu** (pack-manager.nvim UI)
-- `<leader>ps` — sync packages (`vim.pack.update()`)
+- `<leader>ps` — sync packages to newest (`vim.pack.update()`)
+- `<leader>pr` — restore packages to lockfile revisions (`vim.pack.update(nil, { target = 'lockfile' })`)
 - `<leader>pi` — inspect package status (offline)
 - `:checkhealth whipsmart` — diagnose config/plugin issues
 - `:Mason` — manage LSP servers, linters, formatters
@@ -25,7 +26,18 @@ Neovim 0.12+ `vim.pack` system. It replaced a kickstart.nvim + Lazy.nvim setup o
 
 ### Managing `nvim-pack-lock.json` Across Machines
 
-The `nvim-pack-lock.json` lockfile ensures all machines install the exact same version of Neovim plugins. It is fully tracked in Git without workarounds.
+The `nvim-pack-lock.json` lockfile ensures all machines install the exact same version of Neovim plugins. It is fully tracked in Git without workarounds. It is written by Neovim itself
+(`:help vim.pack-lockfile`), not by pack-manager.nvim.
+
+**`<leader>ps` and `<leader>pr` are not interchangeable.** `vim.pack.update()` defaults to
+`target = 'version'`: it fetches the newest revision matching each spec's `version` constraint and
+then *rewrites* the lockfile. `<leader>pr` passes `target = 'lockfile'`, moving plugins to the
+revisions already recorded there. Use `<leader>ps` when you intend to bump plugins, and
+`<leader>pr` after pulling this config elsewhere or to revert a bad update.
+
+Plugins that are in the lockfile but missing from disk are installed at the locked revision on
+startup, so `<leader>pr` is only needed for plugins already present at a different revision.
+After confirming an update, `:restart` to load the new code.
 
 If you update plugins locally:
 1. Stage and commit the updated `nvim-pack-lock.json`:
@@ -53,7 +65,8 @@ If a merge conflict occurs on the lockfile during a pull:
    ```bash
    git checkout --theirs nvim-pack-lock.json
    ```
-2. Open Neovim, run a package sync (`<leader>ps` or `<leader>pm`), and verify everything is correct.
+2. Open Neovim and run `<leader>pr` (**not** `<leader>ps`, which would fetch newest and overwrite
+   the lockfile you just accepted), confirm with `:write`, then `:restart`.
 3. Commit the resolved lockfile.
 
 ## Architecture
@@ -125,8 +138,10 @@ Extras in `lua/whipsmart/plugins/` are not loaded by default. Enable one from a 
 require 'whipsmart.plugins.debug'
 ```
 
-Available extras: `autopairs`, `debug` (DAP/Go), `gitsigns` (extended keymaps),
-`indent_line`, `lint`, `markdown` (render-markdown + obsidian), `neo-tree`.
+Available extras: `debug` (DAP/Go), `lint`, `markdown` (render-markdown + obsidian), `neo-tree`.
+
+(autopairs, indent-blankline and the gitsigns hunk keymaps used to be extras; they are all
+unconditional in core now — see `plugins/cmp.lua` and `plugins/core_ui.lua`.)
 
 ### Per-machine configuration (`lua/local.lua`)
 
@@ -136,6 +151,30 @@ new machine.
 
 Common uses: Nerd Font toggle, colorscheme, GUI font, Python path, enabling opt-in extras,
 setting `vim.g.obsidian_vaults` for the markdown extra.
+
+### Colorscheme
+
+`vim.g.whipsmart_colorscheme` (set in `init.lua` Section 1, overridable in `local.lua`) names the
+scheme to apply. Each colorscheme module **owns a name prefix** and returns early unless the
+variable matches it:
+
+| Prefix | Owner |
+| --- | --- |
+| `tokyonight-*` | `lua/plugins/core_ui.lua` |
+| `catppuccin-*` | `lua/custom/plugins/catppuccin.lua` |
+
+The `vim.pack.add` call sits inside the guard, so a scheme that isn't in use is never downloaded,
+never added to the runtimepath, and never sourced. Sourcing two colorschemes costs ~30ms and makes
+the winner order-dependent.
+
+To add a third scheme, create `lua/custom/plugins/<name>.lua` following the same shape — guard on
+the prefix, then `vim.pack.add` and `vim.cmd.colorscheme(scheme)`. The `colorscheme` call must live
+in `lua/custom/plugins/` (Section 3) rather than `local.lua` (Section 1), because the plugin isn't
+on disk until its module runs.
+
+The default is deliberately tracked in `init.lua` rather than left to each machine's `local.lua` —
+a gitignored file can't carry a decision that applies to every machine, and the machine that
+forgets it silently loads two colorschemes.
 
 ## Markdown / Obsidian setup (`lua/whipsmart/plugins/markdown.lua`)
 
@@ -209,5 +248,10 @@ After a review, update the **Last reviewed** watermark above.
 - `mason-lspconfig` is kept as a dependency even without an explicit `setup()` call —
   it provides lspconfig↔Mason package name translation that `mason-tool-installer` relies on.
 - `blink.cmp` sources use `sources.default`; per-filetype overrides go in `sources.per_filetype`.
+- vim.pack derives a plugin's name from the **last path segment of `src`**. When that segment is
+  generic, pass an explicit `name` — `catppuccin/nvim` would otherwise install as a plugin called
+  `nvim` in both the lockfile and the pack UI. See `lua/custom/plugins/catppuccin.lua`.
+- `gitsigns.setup` (and most plugin `setup` calls) do not merge across calls — a second call
+  re-applies defaults over the first. Keep one `setup` per plugin.
 - LSP is configured with Neovim's native `vim.lsp.config` / `vim.lsp.enable` API (0.11+),
   not through `lspconfig.server.setup()`.

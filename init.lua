@@ -50,6 +50,12 @@ do
   -- Set to true if you have a Nerd Font installed and selected in the terminal
   vim.g.have_nerd_font = true
 
+  -- Colorscheme to apply. Whichever module owns the matching name prefix installs and applies it;
+  -- every other colorscheme module skips itself, so exactly one scheme is ever downloaded and
+  -- sourced. 'tokyonight-*' is owned by plugins/core_ui.lua, 'catppuccin-*' by
+  -- custom/plugins/catppuccin.lua. Override per machine in lua/local.lua.
+  vim.g.whipsmart_colorscheme = 'catppuccin-mocha'
+
   -- [[ Setting options ]]
   --  See `:help vim.o`
   vim.o.number = true
@@ -98,7 +104,7 @@ do
     },
   }
 
-  vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
+  vim.keymap.set('n', '<leader>dq', vim.diagnostic.setloclist, { desc = 'Open [D]iagnostic [Q]uickfix list' })
   vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Show diagnostic [E]rror messages' })
   vim.keymap.set('n', '[d', function() vim.diagnostic.jump { count = -1 } end, { desc = 'Go to previous [D]iagnostic' })
   vim.keymap.set('n', ']d', function() vim.diagnostic.jump { count = 1 } end, { desc = 'Go to next [D]iagnostic' })
@@ -201,7 +207,11 @@ end
 -- ============================================================
 do
   -- Built-in vim.pack keymaps for low-level access
-  vim.keymap.set('n', '<leader>ps', vim.pack.update, { desc = '[P]ackage [S]ync' })
+  --  <leader>ps fetches the newest revision matching each spec's `version` and rewrites the lockfile.
+  --  <leader>pr goes the other way: it moves plugins to the revisions already recorded in the
+  --  lockfile. Use it after pulling this config on another machine, or to revert a bad update.
+  vim.keymap.set('n', '<leader>ps', vim.pack.update, { desc = '[P]ackage [S]ync (update to newest)' })
+  vim.keymap.set('n', '<leader>pr', function() vim.pack.update(nil, { target = 'lockfile' }) end, { desc = '[P]ackage [R]estore (sync to lockfile)' })
   vim.keymap.set('n', '<leader>pi', function() vim.pack.update(nil, { offline = true }) end, { desc = '[P]ackage [I]nspect' })
 
   -- Build steps logic

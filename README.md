@@ -67,9 +67,18 @@ Press **`<leader>pm`** to open the **Package Manager Menu**. This dashboard allo
 
 ### The "Native" Way (Low-Level Access)
 Whipsmart also exposes the raw `vim.pack` primitives:
-- **`<leader>ps`**: **Sync** (Triggers `vim.pack.update()` to fetch new metadata).
+- **`<leader>ps`**: **Sync** (`vim.pack.update()` — move plugins to the newest revision matching
+  each spec's `version`, then rewrite the lockfile).
+- **`<leader>pr`**: **Restore** (`vim.pack.update(nil, { target = 'lockfile' })` — move plugins to
+  the revisions recorded in the lockfile. Use after pulling this config on another machine, or to
+  revert a bad update).
 - **`<leader>pi`**: **Inspect** (View current plugin status offline).
-- **`:w`**: Inside the update buffer, write to disk to apply changes.
+- **`:w`**: Inside the update buffer, write to disk to apply changes. Then `:restart` to load the
+  new plugin code.
+
+Inside the update buffer, `gra` offers per-plugin code actions (update / skip / delete), `K` shows
+details for the change under the cursor, `gO` lists the buffer structure, and `]]` / `[[` jump
+between plugin sections.
 
 ### 🔒 Managing `nvim-pack-lock.json` Across Machines
 Whipsmart tracks `nvim-pack-lock.json` to ensure reproducible environments. When you update plugins locally, the lockfile changes should be committed and pushed to keep all your machines in sync.
@@ -81,6 +90,9 @@ When pulling changes from upstream:
 git restore nvim-pack-lock.json
 git pull
 ```
+
+After pulling a lockfile someone else updated, run **`<leader>pr`** — not `<leader>ps`, which would
+fetch the newest revisions and overwrite the lockfile you just pulled.
 
 See [CLAUDE.md](CLAUDE.md) for full details on managing lockfile workflows and resolving conflicts.
 
@@ -99,10 +111,12 @@ See [CLAUDE.md](CLAUDE.md) for full details on managing lockfile workflows and r
     │   ├── lsp.lua         # LSP, Mason, and Tooling
     │   ├── cmp.lua         # Autocompletion and Snippets
     │   ├── treesitter.lua  # Syntax Highlighting
-    │   └── format.lua      # Conform.nvim Formatting
-    ├── whipsmart/          # Opt-in extras (not loaded by default)
+    │   ├── format.lua      # Conform.nvim Formatting
+    │   └── python_tools.lua # Python indent/tooling
+    ├── whipsmart/
     │   ├── health.lua      # :checkhealth whipsmart
-    │   └── plugins/        # autopairs, debug, gitsigns+, indent, lint, neo-tree
+    │   └── plugins/        # Opt-in extras (not loaded by default):
+    │                       #   debug, lint, markdown, neo-tree
     └── custom/
         └── plugins/        # Your personal plugins — no merge conflicts here
 ```

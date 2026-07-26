@@ -12,8 +12,11 @@
 -- Example: disable Nerd Font if the terminal doesn't support it
 -- vim.g.have_nerd_font = false
 
--- Example: machine-specific colorscheme
--- vim.cmd.colorscheme 'catppuccin'
+-- Example: machine-specific colorscheme (default is set in init.lua Section 1).
+-- Only the module owning the matching name prefix installs and sources its scheme, so changing
+-- this swaps colorschemes without ever downloading two. 'tokyonight-*' lives in
+-- lua/plugins/core_ui.lua, 'catppuccin-*' in lua/custom/plugins/catppuccin.lua.
+-- vim.g.whipsmart_colorscheme = 'tokyonight-night'
 
 -- Example: larger scroll offset on a big monitor
 -- vim.o.scrolloff = 15
