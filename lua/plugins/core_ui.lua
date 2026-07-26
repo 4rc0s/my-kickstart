@@ -132,10 +132,19 @@ if vim.g.have_nerd_font then
   MiniIcons.mock_nvim_web_devicons()
 end
 
+-- The next/last variants are moved off mini.ai's defaults, which claim `an`/`in` (and `al`/`il`)
+-- and would shadow Neovim's built-in treesitter node selection. `aN`/`iN`/`aL`/`iL` is the set
+-- upstream recommends for this — see `:h MiniAi-default-an-in`.
+--
+-- Not `aa`/`ii`: `a` is mini.ai's own *argument* textobject, so binding around_next to `aa` made
+-- the `a` prefix swallow it and broke `daa`/`caa`. `N`/`L` are not textobject ids, so they collide
+-- with nothing. Covering `al`/`il` too keeps Neovim 0.13's new built-ins reachable.
 require('mini.ai').setup {
   mappings = {
-    around_next = 'aa',
-    inside_next = 'ii',
+    around_next = 'aN',
+    inside_next = 'iN',
+    around_last = 'aL',
+    inside_last = 'iL',
   },
   n_lines = 500,
 }
