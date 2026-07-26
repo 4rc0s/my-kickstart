@@ -254,8 +254,15 @@ do
   } do
     require(mod)
   end
+end
 
-  -- Load user custom plugins from lua/custom/plugins/
+-- ============================================================
+-- SECTION 3: USER CUSTOMIZATION
+-- Personal plugins and opt-in extras, loaded after the core modules so they can
+-- depend on anything Section 2 set up (blink.cmp, LSP, telescope, ...).
+-- ============================================================
+do
+  -- Every .lua file in lua/custom/plugins/ is loaded automatically
   require 'custom.plugins'
 end
 

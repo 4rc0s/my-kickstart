@@ -4,39 +4,58 @@ Unified Neovim configuration for all machines.
 
 ## Core Philosophy
 
-1.  **Universal Core:** Every machine runs the same core `init.lua` and `lua/plugins/*.lua`.
-2.  **Explicit Extras:** Functionality like LSP, Debugging, and Linting are handled by a thin wrapper (`lua/whipsmart/plugins/*.lua`) that only initializes if the underlying plugin is present in `nvim-pack-lock.json`.
-3.  **Machine Overrides:** Machine-specific settings (background color, UI toggles, custom keymaps) live in `lua/local.lua` (git-ignored).
-4.  **Lockfile Driven:** The `nvim-pack-lock.json` file is the source of truth for installed plugins and their versions.
+1.  **Universal Core:** Every machine runs the same core `init.lua` and `lua/plugins/*.lua`. LSP, completion, treesitter and formatting live here and are always loaded.
+2.  **Opt-In Extras:** Heavier or situational features (`lua/whipsmart/plugins/*.lua` — debug, lint, markdown, neo-tree) are **not** loaded by default. A machine enables one by `require`-ing it from a file in `lua/custom/plugins/`.
+3.  **Machine Overrides:** Machine-specific settings (colorscheme, UI toggles, Python path, custom keymaps) live in `lua/local.lua` (git-ignored), loaded at the end of Section 1 so it can override any default.
+4.  **Lockfile Driven:** Plugins are declared by `vim.pack.add` calls in Lua; `nvim-pack-lock.json` is the source of truth for the **revision** each one sits at, and is written by Neovim itself.
 
 ## Directory Structure
 
 ```text
 ~/.config/nvim/
-├── init.lua                # Main entry point (Section 1: Options, Section 2: Plugins, Section 3: LSP/Extra Config)
-├── nvim-pack-lock.json     # Plugin manifest and lockfile
+├── init.lua                # Entry point (1: Foundation, 2: Plugin loader, 3: User customization)
+├── nvim-pack-lock.json     # Generated lockfile — plugin revisions
 ├── lua/
 │   ├── local.lua           # (Git-ignored) Machine-specific overrides
-│   ├── plugins/            # Universal plugin specifications
-│   │   ├── core_ui.lua     # basic UI, icons, statusline
+│   ├── plugins/            # Universal core — always loaded, explicit order in init.lua
+│   │   ├── core_ui.lua     # basic UI, icons, statusline, gitsigns, colorscheme
 │   │   ├── telescope.lua   # fuzzy finder
 │   │   └── ...
-│   ├── custom/             # Custom plugin specs or opt-in extras
-│   │   └── ...
+│   ├── custom/
+│   │   └── plugins/        # Personal plugins — every .lua here is auto-loaded
 │   └── whipsmart/          # Internal framework
 │       ├── health.lua      # :checkhealth whipsmart
-│       └── plugins/        # Conditional wrappers for LSP, DAP, Lint, etc.
-│           ├── lsp.lua     # only runs if 'neovim/nvim-lspconfig' is in lockfile
-│           └── ...
+│       └── plugins/        # Opt-in extras — loaded only when required explicitly
+│           ├── debug.lua   # DAP / Go debugging
+│           └── ...         # lint, markdown, neo-tree
 └── doc/
     └── whipsmart.txt       # Vim help doc
 ```
 
 ## Adding a Plugin
 
-1.  Add the plugin to `nvim-pack-lock.json`.
-2.  Add a configuration file in `lua/plugins/` (for universal plugins) or `lua/custom/plugins/` (for extras).
-3.  Restart Neovim and run `:Pack install`.
+The lockfile is **generated, never hand-edited**. Plugins are declared in Lua by calling
+`vim.pack.add`, and `nvim-pack-lock.json` records the revision each one resolved to.
+
+1.  Write the config, including its `vim.pack.add` call:
+    - **Personal / machine-optional** — a new file in `lua/custom/plugins/`. Loaded automatically,
+      no registration needed.
+    - **Universal core** — a new file in `lua/plugins/`, then add its module name to the explicit
+      loader list in `init.lua` (Section 2). Order matters there.
+2.  Restart Neovim. `vim.pack.add` clones anything missing on the spot and asks you to confirm the
+    install; there is no separate install command.
+3.  Commit the resulting `nvim-pack-lock.json` change so the other machines pin the same revision.
+
+```lua
+-- lua/custom/plugins/harpoon.lua
+vim.pack.add { 'https://github.com/ThePrimeagen/harpoon' }
+require('harpoon').setup {}
+```
+
+Pin a version with a spec table instead of a bare URL — `{ src = ..., version = vim.version.range '2.*' }`
+for a semver range, or `version = 'main'` for a branch. Pass an explicit `name` when the URL's last
+path segment is generic. See [CLAUDE.md](CLAUDE.md) for LSP servers, formatters, and treesitter
+parsers, which have their own registration lists, and for how to remove a plugin again.
 
 ## Migration Guide (Hecate -> Whipsmart)
 
@@ -48,33 +67,26 @@ cp ~/.config/nvim/lua/local.lua.example ~/.config/nvim/lua/local.lua
 ```
 
 ### Step 2: LSP Configuration
-LSP configuration requires two entries in `lua/local.lua`:
-1.  `vim.g.lsp_servers`: A list of LSP servers to ensure are installed via Mason.
-2.  `vim.g.lsp_config`: A table mapping server names to their `lspconfig` setup tables.
+LSP is **not** configured per machine. Servers are declared centrally in `lua/plugins/lsp.lua`,
+which keeps two lists that must both be updated: `servers` (lspconfig names, passed to
+`vim.lsp.config` / `vim.lsp.enable`) and `mason_tools` (Mason registry names). The two naming
+schemes often differ — see [CLAUDE.md](CLAUDE.md) for the full procedure.
+
+The core is also runtime-aware: it only installs servers for languages found on `PATH`, so a
+machine without Go simply never installs `gopls`.
 
 ### Step 3: Low-Resource / ARM Optimization (Opt-Out)
-For machines with limited resources (such as older hardware or ARM devices), you can disable heavy LSP servers or tools globally defined in the core.
+The one per-machine LSP knob is opting **out**. For machines with limited resources (older
+hardware, ARM devices), disable servers or tools the core would otherwise install:
 
-Add this to `lua/local.lua`:
 ```lua
--- Disable heavy LSPs for performance
+-- lua/local.lua — disable heavy LSPs for performance
 vim.g.disabled_lsp_servers = { 'lua_ls', 'stylua' }
 ```
-This prevents Mason from installing them and Neovim from initializing them on this specific machine.
 
-Example:
-```lua
-vim.g.lsp_servers = { 'pyright', 'rust_analyzer' }
-vim.g.lsp_config = {
-  pyright = {
-    settings = {
-      python = {
-        analysis = { autoSearchPaths = true }
-      }
-    }
-  }
-}
-```
+This filters both the Mason install list and the `vim.lsp.enable` loop, so the server is neither
+downloaded nor started on that machine. Use lspconfig names for servers (`lua_ls`, not
+`lua-language-server`) and Mason names for standalone tools (`stylua`).
 
 ## Pending per-machine step: catppuccin rename (2026-07-25)
 
