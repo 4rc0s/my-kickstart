@@ -98,9 +98,7 @@ do
     virtual_text = true,
     virtual_lines = false,
     jump = {
-      on_jump = function(_, bufnr)
-        vim.diagnostic.open_float { bufnr = bufnr, scope = 'cursor', focus = false }
-      end,
+      on_jump = function(_, bufnr) vim.diagnostic.open_float { bufnr = bufnr, scope = 'cursor', focus = false } end,
     },
   }
 
@@ -222,9 +220,7 @@ do
   -- Build steps logic
   local function run_build(name, cmd, cwd)
     local result = vim.system(cmd, { cwd = cwd }):wait()
-    if result.code ~= 0 then
-      vim.notify(('Build failed for %s:\n%s'):format(name, result.stderr or result.stdout or 'No output'), vim.log.levels.ERROR)
-    end
+    if result.code ~= 0 then vim.notify(('Build failed for %s:\n%s'):format(name, result.stderr or result.stdout or 'No output'), vim.log.levels.ERROR) end
   end
 
   vim.api.nvim_create_autocmd('PackChanged', {

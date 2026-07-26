@@ -45,9 +45,9 @@ local check_runtimes = function()
   }
   for _, rt in ipairs(runtimes) do
     if vim.fn.executable(rt.bin) == 1 then
-      vim.health.ok(string.format("Found runtime: %s", rt.name))
+      vim.health.ok(string.format('Found runtime: %s', rt.name))
     else
-      vim.health.info(string.format("Optional runtime missing: %s", rt.name))
+      vim.health.info(string.format('Optional runtime missing: %s', rt.name))
     end
   end
 end

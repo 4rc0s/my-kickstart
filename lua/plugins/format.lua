@@ -36,6 +36,9 @@ vim.api.nvim_create_user_command('Format', function(args)
   require('conform').format { async = true, lsp_format = 'fallback', range = range }
 end, { range = true })
 
-vim.keymap.set({ 'n', 'v' }, '<leader>cf', function()
-  require('conform').format { async = false, lsp_format = 'fallback', timeout_ms = 1000 }
-end, { desc = '[C]ode [F]ormat file or range' })
+vim.keymap.set(
+  { 'n', 'v' },
+  '<leader>cf',
+  function() require('conform').format { async = false, lsp_format = 'fallback', timeout_ms = 1000 } end,
+  { desc = '[C]ode [F]ormat file or range' }
+)

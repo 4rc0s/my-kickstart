@@ -112,21 +112,13 @@ local mason_tools = {
 
 local function has(bin) return vim.fn.executable(bin) == 1 end
 
-if has 'go' then
-  vim.list_extend(mason_tools, { 'gopls', 'goimports' })
-end
+if has 'go' then vim.list_extend(mason_tools, { 'gopls', 'goimports' }) end
 
-if has 'python3' then
-  vim.list_extend(mason_tools, { 'basedpyright', 'ruff' })
-end
+if has 'python3' then vim.list_extend(mason_tools, { 'basedpyright', 'ruff' }) end
 
-if has 'npm' or has 'pnpm' or has 'yarn' or has 'bun' then
-  vim.list_extend(mason_tools, { 'typescript-language-server', 'prettierd', 'prettier' })
-end
+if has 'npm' or has 'pnpm' or has 'yarn' or has 'bun' then vim.list_extend(mason_tools, { 'typescript-language-server', 'prettierd', 'prettier' }) end
 
-if has 'cargo' then
-  table.insert(mason_tools, 'rust-analyzer')
-end
+if has 'cargo' then table.insert(mason_tools, 'rust-analyzer') end
 
 -- Filter out disabled tools/servers (opt-out)
 local disabled_servers = vim.g.disabled_lsp_servers or {}
@@ -142,10 +134,8 @@ for _, tool in ipairs(mason_tools) do
   -- Map common lspconfig names to mason names for filtering
   local check_name = tool
   if tool == 'lua-language-server' then check_name = 'lua_ls' end
-  
-  if not is_disabled(check_name) then
-    table.insert(filtered_mason_tools, tool)
-  end
+
+  if not is_disabled(check_name) then table.insert(filtered_mason_tools, tool) end
 end
 
 require('mason').setup {}
