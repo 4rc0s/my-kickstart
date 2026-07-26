@@ -17,5 +17,9 @@ spell/
 # See lua/local.lua.example for available options.
 lua/local.lua
 
+# Per-machine Claude Code permission allowlist (embeds local paths and session ids).
+# Shared project settings belong in .claude/settings.json, which stays tracked.
+.claude/settings.local.json
+
 # Antigravity CLI local run data and logs
 .antigravitycli/
