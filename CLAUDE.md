@@ -296,7 +296,7 @@ make sense as fresh commits (citing the upstream hash in the commit message).
 
 ### Reviewing upstream kickstart.nvim
 
-**Last reviewed:** kickstart commit `f0a2108` (2026-07-14). Start the next review from
+**Last reviewed:** kickstart commit `267fb6a` (2026-07-25). Start the next review from
 this watermark — because ports are fresh commits (never merges), `git merge-base` stays
 frozen at the original fork point (`cfdc17b`) and would re-surface already-ported commits.
 
@@ -317,8 +317,11 @@ After a review, update the **Last reviewed** watermark above.
 
 - `vim.g.have_nerd_font` — gates icon usage throughout the config; defaults to `true`.
   Override in `local.lua` on terminals without a Nerd Font.
-- `mason-lspconfig` is kept as a dependency even without an explicit `setup()` call —
-  it provides lspconfig↔Mason package name translation that `mason-tool-installer` relies on.
+- `mason-lspconfig` is **not installed**. `mason-tool-installer` would use it for lspconfig↔Mason
+  name translation, but that integration is `pcall`-guarded and simply goes unused — which is why
+  `mason_tools` in `lsp.lua` must spell out Mason names directly (`lua-language-server`, not
+  `lua_ls`). Adding it back would also mean calling `setup { automatic_enable = false }`: its
+  default auto-enables every Mason-installed server, fighting the explicit `vim.lsp.enable` loop.
 - `blink.cmp` sources use `sources.default`; per-filetype overrides go in `sources.per_filetype`.
 - vim.pack derives a plugin's name from the **last path segment of `src`**. When that segment is
   generic, pass an explicit `name` — `catppuccin/nvim` would otherwise install as a plugin called
