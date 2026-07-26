@@ -129,6 +129,33 @@ for _, mod in ipairs {
 } do
 ```
 
+### Removing a plugin (and cleaning up orphans)
+
+Deleting a plugin's config does **not** remove it from disk. vim.pack keeps it as an *inactive*
+plugin — still in `~/.local/share/nvim/site/pack/core/opt/` and still in the lockfile. The same
+happens when a plugin's `name` changes: the old directory is orphaned and a fresh clone appears
+under the new name.
+
+List what is currently inactive:
+
+```vim
+:lua vim.print(vim.iter(vim.pack.get(nil, { info = false })):filter(function(p) return not p.active end):map(function(p) return p.spec.name end):totable())
+```
+
+Delete by name — this removes the directory **and** the lockfile entry:
+
+```vim
+:lua vim.pack.del { 'name1', 'name2' }
+```
+
+pack-manager.nvim's `:PackListInactive` / `:PackDelInactive` do the same thing.
+
+**Inactive does not always mean unwanted.** A plugin gated behind an opt-in extra or a `local.lua`
+flag is legitimately inactive on machines that don't enable it — `obsidian.nvim` and `blink.compat`
+without `vim.g.obsidian_vaults`, `tokyonight.nvim` when another colorscheme is selected,
+`nvim-web-devicons` where mini.icons mocks it. Deleting those just means re-downloading later, and
+unpinned, since the lockfile entry goes too. Read the list before acting on it.
+
 ### Enabling opt-in extras
 
 Extras in `lua/whipsmart/plugins/` are not loaded by default. Enable one from a file in

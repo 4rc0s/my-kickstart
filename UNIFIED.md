@@ -76,6 +76,35 @@ vim.g.lsp_config = {
 }
 ```
 
+## Pending per-machine step: catppuccin rename (2026-07-25)
+
+Catppuccin is now installed with an explicit `name = 'catppuccin'`. Previously vim.pack derived
+its name from the last path segment of `catppuccin/nvim` and installed it as a plugin called
+`nvim`. On first launch after pulling this change, each machine clones catppuccin fresh under the
+new name and leaves the old directory orphaned:
+
+```vim
+:lua vim.pack.del { 'nvim' }
+```
+
+The lockfile already carries the corrected entry, so nothing else is needed. Delete this section
+once every machine below is done.
+
+- [x] hecate
+- [ ] roci
+- [ ] orca
+- [ ] cygnus
+- [ ] tau
+
+Machines that never had catppuccin installed have nothing to clean up. Running the command there
+is harmless: `vim.pack.del` resolves every name up front and aborts with
+``Plugin `nvim` is not installed`` before deleting anything, so a bad name in the list can't take
+a good one with it.
+
+While you're there: `tokyonight.nvim` is now inactive on every machine (the colorscheme default
+moved into `init.lua`). Leave it installed unless you want the disk back — see
+[CLAUDE.md](CLAUDE.md) under *Removing a plugin*.
+
 ## Status / Roadmap
 
 - [x] Initial structure and Section 1-3 implementation.

@@ -73,6 +73,9 @@ Whipsmart also exposes the raw `vim.pack` primitives:
   the revisions recorded in the lockfile. Use after pulling this config on another machine, or to
   revert a bad update).
 - **`<leader>pi`**: **Inspect** (View current plugin status offline).
+- **`:lua vim.pack.del { 'name' }`**: Remove a plugin from disk and from the lockfile. Removing a
+  plugin's config leaves it on disk as *inactive* — see [CLAUDE.md](CLAUDE.md) under *Removing a
+  plugin* for how to list orphans before deleting them.
 - **`:w`**: Inside the update buffer, write to disk to apply changes. Then `:restart` to load the
   new plugin code.
 
