@@ -24,8 +24,12 @@
 -- Example: use a local Python interpreter
 -- vim.g.python3_host_prog = '/usr/local/bin/python3'
 
--- Example: enable a whipsmart opt-in extra only on this machine
--- require 'whipsmart.plugins.debug'
+-- Opt-in extras do NOT go here. This file runs in Section 1, before the core plugins load, so an
+-- extra that depends on blink.cmp or LSP (the markdown one does) will error. Enable them from a
+-- file in lua/custom/plugins/ instead, which loads in Section 3:
+--
+--   -- lua/custom/plugins/debug.lua
+--   require 'whipsmart.plugins.debug'
 
 -- Example: disable heavy LSP servers on low-resource machines
 -- vim.g.disabled_lsp_servers = { 'lua_ls', 'stylua' }

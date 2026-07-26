@@ -8,7 +8,7 @@ Whipsmart.nvim is a modular, native-first Neovim configuration built on top of t
 - **Native-First**: Leverages Neovim 0.12's built-in `vim.pack` for plugin management and native LSP/Autocomplete improvements.
 - **Runtime-Aware LSP**: Automatically detects available language runtimes (Go, Node, Python) and only installs corresponding LSP tools, preventing errors on minimal systems.
 - **Ergonomic Dashboard**: Includes `pack-manager.nvim` to provide a polished, Lazy-like UI on top of native primitives.
-- **Machine Awareness**: Built-in hostname detection in `init.lua` for machine-specific overrides.
+- **Machine Awareness**: Per-machine overrides live in a gitignored `lua/local.lua`, loaded last so it can override any default — no machine-specific code in the tracked config.
 - **Version Pinning**: Uses `nvim-pack-lock.json` for reproducible environments across all your hardware.
 
 ## 🚀 Quick Start
@@ -39,20 +39,35 @@ On first launch, Mason will install the default LSP servers and formatters for t
 
 > **Tip:** Whipsmart is "runtime-aware." If you install a new language later (e.g., via `mise` or `asdf`), simply restart Neovim or run `:MasonToolsInstall` to pick up the corresponding tools automatically.
 
-### 3. Register Your Machine
+### 3. Set Up This Machine
 
-Open `init.lua` and add a branch for your hostname in the **Machine Specific Setup** block:
+Machine-specific settings go in `lua/local.lua`, which is **gitignored** — it never gets committed, so each machine keeps its own. Start from the example:
 
-```lua
-local hostname = vim.uv.os_gethostname()
-if hostname == 'vera' then
-  -- existing machine
-elseif hostname == 'your-hostname' then
-  -- machine-specific overrides (font size, LSP servers, etc.)
-end
+```sh
+cp ~/.config/nvim/lua/local.lua.example ~/.config/nvim/lua/local.lua
 ```
 
-Also add the machine to the list in `UNIFIED.md` under **Machine Detection**. Then push so the other machines stay in sync.
+It is loaded at the very end of Section 1 in `init.lua`, after every default is set, so anything in it wins:
+
+```lua
+-- lua/local.lua
+vim.g.have_nerd_font = false                          -- terminal without a Nerd Font
+vim.g.whipsmart_colorscheme = 'tokyonight-night'      -- 'tokyonight-*' or 'catppuccin-*'
+vim.o.scrolloff = 15                                  -- big monitor
+vim.g.python3_host_prog = '/usr/local/bin/python3'
+vim.g.disabled_lsp_servers = { 'lua_ls' }             -- skip on low-resource machines
+```
+
+See `lua/local.lua.example` for the full annotated list.
+
+**Opt-in extras are the exception** — enable those from a file in `lua/custom/plugins/`, not here. `local.lua` runs in Section 1, before the core plugins load, so an extra that depends on blink.cmp or LSP (the `markdown` one does) will fail:
+
+```lua
+-- lua/custom/plugins/debug.lua
+require 'whipsmart.plugins.debug'
+```
+
+> **Note:** `init.lua` does have a hostname block, but it is empty by design. Prefer `local.lua` — putting overrides in `init.lua` commits one machine's settings to every machine.
 
 ## 🛠️ Package Management
 
@@ -189,7 +204,7 @@ end,
 ```
 
 ### Machine-Specific Settings
-Whipsmart uses hostname detection. Open `init.lua` and locate the **Machine Specific Setup** section to add overrides for your specific hardware.
+Put them in `lua/local.lua` — gitignored, copied from `lua/local.lua.example`, and loaded at the end of Section 1 so it overrides any default. See [Set Up This Machine](#3-set-up-this-machine) for what belongs there, and note that opt-in extras go in `lua/custom/plugins/` instead.
 
 ## 📜 Credits
 Whipsmart started as a fork of [kickstart.nvim](https://github.com/nvim-lua/kickstart.nvim) and maintains its spirit of being a starting point rather than a distribution.
