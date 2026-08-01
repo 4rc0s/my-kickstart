@@ -73,35 +73,62 @@ If a merge conflict occurs on the lockfile during a pull:
 
 ### Adding an LSP server
 
-`lua/plugins/lsp.lua` has **two separate lists** that must both be updated:
+Add **one row** to `lsp_servers` in `lua/plugins/lsp.lua`. Everything else — the Mason install
+list, the runtime gate, the opt-out filter, and the post-install retry — is derived from it:
 
-1. **`servers`** — uses **lspconfig names**, passed to `vim.lsp.config` / `vim.lsp.enable`:
-   ```lua
-   local servers = {
-     lua_ls  = { ... },  -- lspconfig name
-     gopls   = {},
-   }
-   ```
+```lua
+local lsp_servers = {
+  lua_ls = {
+    mason = 'lua-language-server',   -- Mason name for lua_ls (differs!)
+    config = { ... },                -- passed to vim.lsp.config
+  },
+  gopls = { mason = 'gopls', runtime = 'go', config = {} },
+}
+```
 
-2. **`mason_tools`** — uses **Mason registry names**, passed to `mason-tool-installer`:
-   ```lua
-   local mason_tools = {
-     'lua-language-server',  -- Mason name for lua_ls (differs!)
-     'gopls',
-   }
-   ```
+| Field | Meaning |
+| --- | --- |
+| key | **lspconfig name** — passed to `vim.lsp.config` / `vim.lsp.enable` |
+| `mason` | **Mason registry name** — passed to `mason-tool-installer` |
+| `runtime` | key into `runtimes`; omit when the server needs no language runtime |
+| `config` | the server's `vim.lsp.config` table |
 
 lspconfig names and Mason names often differ. Look up the Mason name at
 [mason-registry.dev](https://mason-registry.dev/registry/list) and the lspconfig name in the
 [lspconfig server list](https://github.com/neovim/nvim-lspconfig/blob/master/doc/configs.md).
+
+A server is installed **and** enabled only when its `runtime` is present on the machine and
+neither of its names appears in `vim.g.disabled_lsp_servers`. A new `runtime` key needs a row in
+the `runtimes` table above it — a runtime counts as available when **any** of its binaries is on
+`PATH` (that is how `node` accepts npm/pnpm/yarn/bun):
+
+```lua
+local runtimes = {
+  go = { 'go' },
+  node = { 'npm', 'pnpm', 'yarn', 'bun' },
+}
+```
+
+Because `runtimes` is evaluated once at startup, installing a new language runtime needs a
+Neovim restart, not just `:MasonToolsInstall`.
 
 System-installed LSPs (not managed by Mason) are added at the bottom of `lsp.lua` with an
 `executable` guard — see `nimls` and `gleam` as examples.
 
 ### Adding a formatter
 
-Add to `formatters_by_ft` in `lua/plugins/format.lua`. Also add the Mason package name to
-`mason_tools` in `lsp.lua` if it needs auto-installation.
+Add to `formatters_by_ft` in `lua/plugins/format.lua`. If it needs auto-installation, add the
+Mason package name to `extra_tools` in `lsp.lua` — the list for Mason packages that are *not*
+language servers configured here (formatters, linters, and rust-analyzer, which rustaceanvim
+drives). Each row is package names plus an optional `runtime` gate, using the same keys as
+`lsp_servers`:
+
+```lua
+local extra_tools = {
+  { 'stylua' },                              -- no runtime gate
+  { 'prettierd', 'prettier', runtime = 'node' },
+}
+```
 
 Format-on-save needs no registration: `format_on_save = { timeout_ms = 1000, lsp_format = 'fallback' }`
 applies to **every** filetype, and falls back to the LSP formatter when conform has none configured
@@ -319,9 +346,10 @@ After a review, update the **Last reviewed** watermark above.
   Override in `local.lua` on terminals without a Nerd Font.
 - `mason-lspconfig` is **not installed**. `mason-tool-installer` would use it for lspconfig↔Mason
   name translation, but that integration is `pcall`-guarded and simply goes unused — which is why
-  `mason_tools` in `lsp.lua` must spell out Mason names directly (`lua-language-server`, not
-  `lua_ls`). Adding it back would also mean calling `setup { automatic_enable = false }`: its
-  default auto-enables every Mason-installed server, fighting the explicit `vim.lsp.enable` loop.
+  each `lsp_servers` row in `lsp.lua` carries its own `mason` field spelling the Mason name out
+  directly (`lua-language-server`, not `lua_ls`). Adding it back would also mean calling
+  `setup { automatic_enable = false }`: its default auto-enables every Mason-installed server,
+  fighting the explicit `vim.lsp.enable` loop.
 - `blink.cmp` sources use `sources.default`; per-filetype overrides go in `sources.per_filetype`.
 - vim.pack derives a plugin's name from the **last path segment of `src`**. When that segment is
   generic, pass an explicit `name` — `catppuccin/nvim` would otherwise install as a plugin called

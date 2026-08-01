@@ -75,12 +75,14 @@ to see which external tools and runtimes the machine is missing.
 
 ### Step 2: LSP — nothing to configure per machine
 LSP is **not** configured per machine. Servers are declared centrally in `lua/plugins/lsp.lua`,
-which keeps two lists that must both be updated: `servers` (lspconfig names, passed to
-`vim.lsp.config` / `vim.lsp.enable`) and `mason_tools` (Mason registry names). The two naming
-schemes often differ — see [CLAUDE.md](CLAUDE.md) for the full procedure.
+as one row per server in `lsp_servers` carrying both naming schemes — the lspconfig name (the
+key, passed to `vim.lsp.config` / `vim.lsp.enable`) and the Mason registry name (the `mason`
+field). The two often differ; the install list, runtime gate, opt-out filter and post-install
+retry are all derived from that one row — see [CLAUDE.md](CLAUDE.md) for the full procedure.
 
-The core is also runtime-aware: it only installs servers for languages found on `PATH`, so a
-machine without Go simply never installs `gopls`.
+The core is also runtime-aware: each row's optional `runtime` key gates both installation and
+activation, so a machine without Go never installs `gopls` and never tries to start it. Runtime
+detection runs once at startup, so installing a new language needs a Neovim restart.
 
 ### Step 3: Low-Resource / ARM Optimization (Opt-Out)
 The one per-machine LSP knob is opting **out**. For machines with limited resources (older
@@ -92,8 +94,9 @@ vim.g.disabled_lsp_servers = { 'lua_ls', 'stylua' }
 ```
 
 This filters both the Mason install list and the `vim.lsp.enable` loop, so the server is neither
-downloaded nor started on that machine. Use lspconfig names for servers (`lua_ls`, not
-`lua-language-server`) and Mason names for standalone tools (`stylua`).
+downloaded nor started on that machine. A server may be named either way — `lua_ls` or
+`lua-language-server` both work, and both skip the download *and* the activation. Standalone
+tools are named by their Mason package (`stylua`).
 
 ## Pending per-machine step: catppuccin rename (2026-07-25)
 

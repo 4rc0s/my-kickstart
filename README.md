@@ -37,7 +37,7 @@ On first launch, Mason will install the default LSP servers and formatters for t
 :checkhealth whipsmart
 ```
 
-> **Tip:** Whipsmart is "runtime-aware." If you install a new language later (e.g., via `mise` or `asdf`), simply restart Neovim or run `:MasonToolsInstall` to pick up the corresponding tools automatically.
+> **Tip:** Whipsmart is "runtime-aware." If you install a new language later (e.g., via `mise` or `asdf`), **restart Neovim** to pick up the corresponding tools automatically — runtime detection runs once at startup, so `:MasonToolsInstall` alone will not notice the new language.
 
 ### 3. Set Up This Machine
 
@@ -161,24 +161,28 @@ for _, mod in ipairs {
 ```
 
 ### Adding LSP Servers
-LSP configuration lives in `lua/plugins/lsp.lua` and has two separate lists that must both be updated:
+LSP configuration lives in `lua/plugins/lsp.lua`. Add **one row** to `lsp_servers` — the Mason install list, the runtime gate, the opt-out filter and the post-install retry are all derived from it:
 
-1. **`servers`** — uses **lspconfig names** (passed to `vim.lsp.config` / `vim.lsp.enable`):
-   ```lua
-   local servers = {
-     lua_ls = { ... },   -- lspconfig name
-     pyright = {},       -- lspconfig name
-   }
-   ```
+```lua
+local lsp_servers = {
+  lua_ls = {
+    mason = 'lua-language-server',   -- Mason name for lua_ls
+    config = { ... },                -- passed to vim.lsp.config
+  },
+  pyright = { mason = 'pyright', runtime = 'python', config = {} },
+}
+```
 
-2. **`mason_tools`** — uses **Mason registry names** (passed to `mason-tool-installer`):
-   ```lua
-   local mason_tools = {
-     'lua-language-server',  -- Mason name for lua_ls
-     'pyright',              -- Mason name (happens to match here)
-     'stylua',               -- formatter, Mason name
-   }
-   ```
+| Field | Meaning |
+| --- | --- |
+| key | **lspconfig name** — passed to `vim.lsp.config` / `vim.lsp.enable` |
+| `mason` | **Mason registry name** — passed to `mason-tool-installer` |
+| `runtime` | key into the `runtimes` table; omit when the server needs no language runtime |
+| `config` | the server's `vim.lsp.config` table |
+
+A server is installed **and** enabled only when its `runtime` is on `PATH` and neither of its names is in `vim.g.disabled_lsp_servers`. A runtime counts as available when **any** of its binaries is found, which is how `node` accepts npm/pnpm/yarn/bun.
+
+Mason packages that aren't language servers — formatters, linters, and rust-analyzer (driven by rustaceanvim) — go in `extra_tools` instead, using the same `runtime` keys.
 
 > **Note:** lspconfig names and Mason names often differ. Look up the correct Mason name at [mason-registry](https://mason-registry.dev/registry/list) and the lspconfig name in the [lspconfig server list](https://github.com/neovim/nvim-lspconfig/blob/master/doc/configs.md).
 
@@ -191,7 +195,7 @@ format_on_save = { timeout_ms = 1000, lsp_format = 'fallback' },
 
 `lsp_format = 'fallback'` means a buffer with no entry in `formatters_by_ft` is still formatted by its
 language server, if one is attached. To add a dedicated formatter for a filetype, add it to
-`formatters_by_ft` (and to `mason_tools` in `lsp.lua` if it needs installing).
+`formatters_by_ft` (and to `extra_tools` in `lsp.lua` if it needs installing).
 
 To turn it off — globally, per buffer, or per filetype — swap the table for a function; conform skips
 the save-format when it returns `nil`:

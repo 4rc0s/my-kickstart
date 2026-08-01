@@ -31,5 +31,7 @@
 --   -- lua/custom/plugins/debug.lua
 --   require 'whipsmart.plugins.debug'
 
--- Example: disable heavy LSP servers on low-resource machines
+-- Example: disable heavy LSP servers on low-resource machines.
+-- Servers may be named either way ('lua_ls' or 'lua-language-server'); both skip the Mason
+-- download and the vim.lsp.enable call. Standalone tools use their Mason name ('stylua').
 -- vim.g.disabled_lsp_servers = { 'lua_ls', 'stylua' }

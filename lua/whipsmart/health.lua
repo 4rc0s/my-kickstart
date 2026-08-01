@@ -58,9 +58,10 @@ return {
 
     vim.health.info [[NOTE: Not every warning is a 'must-fix'.
     
-    Whipsmart is runtime-aware: it only attempts to install LSPs for languages 
-    found in your PATH. If you install a new language (e.g. via 'mise'), 
-    run :MasonToolsInstall to pick up the new tools.]]
+    Whipsmart is runtime-aware: it only attempts to install LSPs for languages
+    found in your PATH. Detection runs once at startup, so after installing a new
+    language (e.g. via 'mise') you must restart Neovim to pick up its tools --
+    :MasonToolsInstall alone will not notice it.]]
 
     local uv = vim.uv or vim.loop
     vim.health.info('System Information: ' .. vim.inspect(uv.os_uname()))

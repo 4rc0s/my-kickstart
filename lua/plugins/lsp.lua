@@ -64,58 +64,84 @@ vim.api.nvim_create_autocmd('LspAttach', {
   end,
 })
 
--- lspconfig ships a `stylua` server (`stylua --lsp`), but it is deliberately not enabled here:
--- conform already runs the stylua binary for lua via formatters_by_ft, so enabling it would attach
--- a second stylua process to every Lua buffer to do work that is already done. It stays in
--- mason_tools below — conform needs the executable, just not the language server.
-local servers = {
+-- Mason-managed language servers. One row per server:
+--   key      lspconfig name, passed to vim.lsp.config / vim.lsp.enable
+--   mason    Mason registry package name (often differs from the lspconfig name)
+--   runtime  key into `runtimes` below; omit when the server needs no language runtime
+--   config   the table passed to vim.lsp.config
+-- A server is installed AND enabled only when its runtime is present and neither of its names
+-- appears in vim.g.disabled_lsp_servers. See CLAUDE.md "Adding an LSP server".
+local lsp_servers = {
   lua_ls = {
-    on_init = function(client)
-      client.server_capabilities.documentFormattingProvider = false
-      if client.workspace_folders then
-        local path = client.workspace_folders[1].name
-        if path ~= vim.fn.stdpath 'config' and (vim.uv.fs_stat(path .. '/.luarc.json') or vim.uv.fs_stat(path .. '/.luarc.jsonc')) then return end
-      end
-      local current_settings = client.config.settings --[[@as lspconfig.settings.lua_ls]]
-      client.config.settings.Lua = vim.tbl_deep_extend('force', current_settings.Lua, {
-        runtime = { version = 'LuaJIT', path = { 'lua/?.lua', 'lua/?/init.lua' } },
-        workspace = {
-          checkThirdParty = false,
-          library = vim.tbl_extend('force', vim.api.nvim_get_runtime_file('', true), {
-            '${3rd}/luv/library',
-            '${3rd}/busted/library',
-          }),
-        },
-      })
-    end,
-    settings = { Lua = { format = { enable = false } } },
+    mason = 'lua-language-server',
+    config = {
+      on_init = function(client)
+        client.server_capabilities.documentFormattingProvider = false
+        if client.workspace_folders then
+          local path = client.workspace_folders[1].name
+          if path ~= vim.fn.stdpath 'config' and (vim.uv.fs_stat(path .. '/.luarc.json') or vim.uv.fs_stat(path .. '/.luarc.jsonc')) then return end
+        end
+        local current_settings = client.config.settings --[[@as lspconfig.settings.lua_ls]]
+        client.config.settings.Lua = vim.tbl_deep_extend('force', current_settings.Lua, {
+          runtime = { version = 'LuaJIT', path = { 'lua/?.lua', 'lua/?/init.lua' } },
+          workspace = {
+            checkThirdParty = false,
+            library = vim.tbl_extend('force', vim.api.nvim_get_runtime_file('', true), {
+              '${3rd}/luv/library',
+              '${3rd}/busted/library',
+            }),
+          },
+        })
+      end,
+      settings = { Lua = { format = { enable = false } } },
+    },
   },
-  gopls = {},
+  gopls = { mason = 'gopls', runtime = 'go', config = {} },
   basedpyright = {
-    settings = {
-      basedpyright = {
-        analysis = {
-          autoSearchPaths = true,
-          useLibraryCodeForTypes = true,
-          diagnosticMode = 'openFilesOnly',
+    mason = 'basedpyright',
+    runtime = 'python',
+    config = {
+      settings = {
+        basedpyright = {
+          analysis = {
+            autoSearchPaths = true,
+            useLibraryCodeForTypes = true,
+            diagnosticMode = 'openFilesOnly',
+          },
         },
       },
-    },
-    before_init = function(_, config)
-      local root_dir = config.root_dir
-      if root_dir then
-        local venv_path = root_dir .. '/.venv'
-        if vim.fn.isdirectory(venv_path) == 1 then
-          local python_path = venv_path .. '/bin/python'
-          if vim.fn.filereadable(python_path) == 1 then
-            config.settings.python = config.settings.python or {}
-            config.settings.python.pythonPath = python_path
+      before_init = function(_, config)
+        local root_dir = config.root_dir
+        if root_dir then
+          local venv_path = root_dir .. '/.venv'
+          if vim.fn.isdirectory(venv_path) == 1 then
+            local python_path = venv_path .. '/bin/python'
+            if vim.fn.filereadable(python_path) == 1 then
+              config.settings.python = config.settings.python or {}
+              config.settings.python.pythonPath = python_path
+            end
           end
         end
-      end
-    end,
+      end,
+    },
   },
-  ts_ls = {},
+  ts_ls = { mason = 'typescript-language-server', runtime = 'node', config = {} },
+}
+
+-- Mason packages that are not language servers configured here: formatters, linters, and
+-- rust-analyzer (driven by rustaceanvim in lua/custom/plugins/rust.lua). Each row is a list of
+-- package names plus an optional `runtime` gate, using the same keys as `lsp_servers` above.
+--
+-- lspconfig ships a `stylua` server (`stylua --lsp`), but it is deliberately not enabled here:
+-- conform already runs the stylua binary for lua via formatters_by_ft, so enabling it would attach
+-- a second stylua process to every Lua buffer to do work that is already done. It lives here
+-- instead — conform needs the executable, just not the language server.
+local extra_tools = {
+  { 'stylua' },
+  { 'goimports', runtime = 'go' },
+  { 'ruff', runtime = 'python' },
+  { 'prettierd', 'prettier', runtime = 'node' },
+  { 'rust-analyzer', runtime = 'rust' },
 }
 
 vim.pack.add {
@@ -124,76 +150,71 @@ vim.pack.add {
   gh 'WhoIsSethDaniel/mason-tool-installer.nvim',
 }
 
--- Mason package names (may differ from lspconfig server names, e.g. lua_ls -> lua-language-server)
-local mason_tools = {
-  'lua-language-server',
-  'stylua',
-}
-
 local function has(bin) return vim.fn.executable(bin) == 1 end
 
-if has 'go' then vim.list_extend(mason_tools, { 'gopls', 'goimports' }) end
-
-if has 'python3' then vim.list_extend(mason_tools, { 'basedpyright', 'ruff' }) end
-
-if has 'npm' or has 'pnpm' or has 'yarn' or has 'bun' then vim.list_extend(mason_tools, { 'typescript-language-server', 'prettierd', 'prettier' }) end
-
-if has 'cargo' then table.insert(mason_tools, 'rust-analyzer') end
-
--- Do not activate an LSP whose runtime is unavailable on this machine.
-local server_runtime_available = {
-  gopls = has 'go',
-  basedpyright = has 'python3',
-  ts_ls = has 'npm' or has 'pnpm' or has 'yarn' or has 'bun',
+-- A runtime is available when ANY of its binaries is on PATH. Both `lsp_servers` and
+-- `extra_tools` key off these names, so the install gate and the activation gate cannot drift.
+local runtimes = {
+  go = { 'go' },
+  python = { 'python3' },
+  node = { 'npm', 'pnpm', 'yarn', 'bun' },
+  rust = { 'cargo' },
 }
 
--- Filter out disabled tools/servers (opt-out)
+local available = {}
+for name, bins in pairs(runtimes) do
+  available[name] = vim.iter(bins):any(has)
+end
+
+-- Opt-out list (vim.g.disabled_lsp_servers). A server may be named by either its lspconfig name
+-- ('ts_ls') or its Mason package name ('typescript-language-server'); either skips both the
+-- install and the activation. Standalone tools are named by their Mason package ('stylua').
 local disabled_servers = vim.g.disabled_lsp_servers or {}
-local function is_disabled(name)
-  for _, disabled in ipairs(disabled_servers) do
-    if name == disabled then return true end
+local function is_disabled(name) return vim.tbl_contains(disabled_servers, name) end
+local function runtime_ok(spec) return spec.runtime == nil or available[spec.runtime] end
+
+local mason_tools = {}
+local active_servers = {} -- lspconfig name -> config
+local mason_to_server = {} -- Mason package name -> lspconfig name
+
+-- vim.spairs keeps the install order stable across launches.
+for name, spec in vim.spairs(lsp_servers) do
+  if runtime_ok(spec) and not is_disabled(name) and not is_disabled(spec.mason) then
+    table.insert(mason_tools, spec.mason)
+    mason_to_server[spec.mason] = name
+    active_servers[name] = spec.config
   end
-  return false
 end
 
-local filtered_mason_tools = {}
-for _, tool in ipairs(mason_tools) do
-  -- Map common lspconfig names to mason names for filtering
-  local check_name = tool
-  if tool == 'lua-language-server' then check_name = 'lua_ls' end
-
-  if not is_disabled(check_name) then table.insert(filtered_mason_tools, tool) end
+for _, group in ipairs(extra_tools) do
+  if runtime_ok(group) then
+    for _, tool in ipairs(group) do
+      if not is_disabled(tool) then table.insert(mason_tools, tool) end
+    end
+  end
 end
 
+-- mason.setup puts Mason's bin/ on PATH, so it must precede the vim.lsp.enable loop.
 require('mason').setup {}
-require('mason-tool-installer').setup { ensure_installed = filtered_mason_tools }
+require('mason-tool-installer').setup { ensure_installed = mason_tools }
 
-local enabled_servers = {}
-for name, server in pairs(servers) do
-  if not is_disabled(name) and server_runtime_available[name] ~= false then
-    vim.lsp.config(name, server)
-    vim.lsp.enable(name)
-    enabled_servers[name] = true
-  end
+for name, config in pairs(active_servers) do
+  vim.lsp.config(name, config)
+  vim.lsp.enable(name)
 end
 
--- Retry buffers opened before Mason finished installing their language server.
-local mason_lsp_servers = {
-  ['lua-language-server'] = 'lua_ls',
-  gopls = 'gopls',
-  basedpyright = 'basedpyright',
-  ['typescript-language-server'] = 'ts_ls',
-}
+-- Buffers opened before Mason finished installing a server never got a client. Re-run activation
+-- when a server package lands; vim.lsp.enable re-scans every loaded buffer (:h vim.lsp.enable).
 vim.api.nvim_create_autocmd('User', {
   group = vim.api.nvim_create_augroup('whipsmart-mason-lsp-retry', { clear = true }),
   pattern = 'MasonToolsUpdateCompleted',
   callback = function(event)
-    local retry = {}
     for _, package in ipairs(event.data or {}) do
-      local name = mason_lsp_servers[package]
-      if name and enabled_servers[name] then table.insert(retry, name) end
+      if mason_to_server[package] then
+        vim.schedule(function() vim.lsp.enable(vim.tbl_keys(active_servers)) end)
+        return
+      end
     end
-    if #retry > 0 then vim.schedule(function() vim.lsp.enable(retry) end) end
   end,
 })
 
