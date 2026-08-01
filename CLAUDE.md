@@ -347,9 +347,18 @@ make sense as fresh commits (citing the upstream hash in the commit message).
 
 ### Reviewing upstream kickstart.nvim
 
-**Last reviewed:** kickstart commit `267fb6a` (2026-07-25). Start the next review from
+**Last reviewed:** kickstart commit `b01d052` (2026-07-27). Start the next review from
 this watermark — because ports are fresh commits (never merges), `git merge-base` stays
 frozen at the original fork point (`cfdc17b`) and would re-surface already-ported commits.
+
+`b01d052` ("Fix lua_ls diagnostics", their #2133) was the only commit in that window, and
+it is the same change as our `99fe87f`. We have since replaced that cast with
+`client.config.settings.Lua or {}` — see "lua_ls workspace libraries are lazydev's job".
+
+We do not run kickstart's `workspace.library` sweep at all any more, so their `init.lua:728`
+has no counterpart here. The `vim.tbl_extend`-on-lists bug still in that line is reported
+upstream as [kickstart#2138](https://github.com/nvim-lua/kickstart.nvim/issues/2138); if it
+is fixed there, nothing needs porting.
 
 Workflow:
 ```bash
