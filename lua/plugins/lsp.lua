@@ -151,12 +151,34 @@ end
 require('mason').setup {}
 require('mason-tool-installer').setup { ensure_installed = filtered_mason_tools }
 
+local enabled_servers = {}
 for name, server in pairs(servers) do
   if not is_disabled(name) and server_runtime_available[name] ~= false then
     vim.lsp.config(name, server)
     vim.lsp.enable(name)
+    enabled_servers[name] = true
   end
 end
+
+-- Retry buffers opened before Mason finished installing their language server.
+local mason_lsp_servers = {
+  ['lua-language-server'] = 'lua_ls',
+  gopls = 'gopls',
+  basedpyright = 'basedpyright',
+  ['typescript-language-server'] = 'ts_ls',
+}
+vim.api.nvim_create_autocmd('User', {
+  group = vim.api.nvim_create_augroup('whipsmart-mason-lsp-retry', { clear = true }),
+  pattern = 'MasonToolsUpdateCompleted',
+  callback = function(event)
+    local retry = {}
+    for _, package in ipairs(event.data or {}) do
+      local name = mason_lsp_servers[package]
+      if name and enabled_servers[name] then table.insert(retry, name) end
+    end
+    if #retry > 0 then vim.schedule(function() vim.lsp.enable(retry) end) end
+  end,
+})
 
 -- System-installed LSPs (not managed by Mason)
 if vim.fn.executable 'nimls' == 1 then
