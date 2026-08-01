@@ -12,6 +12,8 @@ local highlight_augroup = vim.api.nvim_create_augroup('whipsmart-lsp-highlight',
 
 local function supports_document_highlight(client, bufnr) return client:supports_method('textDocument/documentHighlight', bufnr) end
 
+local function has_highlight_autocmds(bufnr) return #vim.api.nvim_get_autocmds { group = highlight_augroup, buffer = bufnr } > 0 end
+
 local function has_document_highlight_client(bufnr, excluded_client_id)
   for _, client in ipairs(vim.lsp.get_clients { bufnr = bufnr }) do
     if client.id ~= excluded_client_id and supports_document_highlight(client, bufnr) then return true end
@@ -26,7 +28,6 @@ vim.api.nvim_create_autocmd('LspDetach', {
     if client and supports_document_highlight(client, event.buf) and not has_document_highlight_client(event.buf, client.id) then
       vim.lsp.util.buf_clear_references(event.buf)
       vim.api.nvim_clear_autocmds { group = highlight_augroup, buffer = event.buf }
-      vim.b[event.buf].whipsmart_lsp_highlights = nil
     end
   end,
 })
@@ -44,8 +45,10 @@ vim.api.nvim_create_autocmd('LspAttach', {
     map('grD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
 
     local client = vim.lsp.get_client_by_id(event.data.client_id)
-    if client and supports_document_highlight(client, event.buf) and not vim.b[event.buf].whipsmart_lsp_highlights then
-      vim.b[event.buf].whipsmart_lsp_highlights = true
+    -- Register the highlight autocmds once per buffer, however many clients attach. The augroup
+    -- is the source of truth: a separate buffer flag would survive a re-source of this module,
+    -- which clears the group, and the highlights would stay dead until the next attach.
+    if client and supports_document_highlight(client, event.buf) and not has_highlight_autocmds(event.buf) then
       vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
         buffer = event.buf,
         group = highlight_augroup,
@@ -64,6 +67,23 @@ vim.api.nvim_create_autocmd('LspAttach', {
   end,
 })
 
+-- lazydev feeds lua_ls its workspace libraries on demand, resolving them from the `require`
+-- statements and ---@module annotations actually present in the buffer. The alternative is
+-- handing lua_ls every runtime directory up front, which on this config means ~3.3k files and
+-- ~650k lines of plugin source parsed on first attach. It supplies the Neovim runtime itself,
+-- so `workspace.library` is deliberately not set below.
+vim.pack.add { gh 'folke/lazydev.nvim' }
+require('lazydev').setup {
+  library = {
+    -- Trigger words are Lua patterns matched per line, so they must be specific: a bare
+    -- 'it' pulls busted into every buffer whose comments contain the English word.
+    { path = '${3rd}/luv/library', words = { 'vim%.uv' } },
+    { path = '${3rd}/busted/library', words = { 'describe%s*%(' } },
+  },
+  -- A project shipping its own .luarc.json owns its LuaLS setup; stay out of the way.
+  enabled = function(root_dir) return not vim.uv.fs_stat(root_dir .. '/.luarc.json') end,
+}
+
 -- Mason-managed language servers. One row per server:
 --   key      lspconfig name, passed to vim.lsp.config / vim.lsp.enable
 --   mason    Mason registry package name (often differs from the lspconfig name)
@@ -81,16 +101,11 @@ local lsp_servers = {
           local path = client.workspace_folders[1].name
           if path ~= vim.fn.stdpath 'config' and (vim.uv.fs_stat(path .. '/.luarc.json') or vim.uv.fs_stat(path .. '/.luarc.jsonc')) then return end
         end
-        local current_settings = client.config.settings --[[@as lspconfig.settings.lua_ls]]
-        client.config.settings.Lua = vim.tbl_deep_extend('force', current_settings.Lua, {
+        -- `or {}` rather than a type cast: it needs no lspconfig type definitions in the
+        -- workspace, and it survives a settings table that arrives without a Lua key.
+        client.config.settings.Lua = vim.tbl_deep_extend('force', client.config.settings.Lua or {}, {
           runtime = { version = 'LuaJIT', path = { 'lua/?.lua', 'lua/?/init.lua' } },
-          workspace = {
-            checkThirdParty = false,
-            library = vim.tbl_extend('force', vim.api.nvim_get_runtime_file('', true), {
-              '${3rd}/luv/library',
-              '${3rd}/busted/library',
-            }),
-          },
+          workspace = { checkThirdParty = false },
         })
       end,
       settings = { Lua = { format = { enable = false } } },

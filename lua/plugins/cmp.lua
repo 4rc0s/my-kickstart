@@ -17,7 +17,15 @@ require('blink.cmp').setup {
   keymap = { preset = 'default' },
   appearance = { nerd_font_variant = 'mono' },
   completion = { documentation = { auto_show = false, auto_show_delay_ms = 500 } },
-  sources = { default = { 'lsp', 'path', 'snippets' } },
+  -- lazydev (set up in plugins/lsp.lua) completes module names in `require` statements. Its
+  -- source reports itself disabled outside lazydev-attached buffers, so listing it in `default`
+  -- costs nothing in other filetypes. score_offset floats modules above lua_ls's own results.
+  sources = {
+    default = { 'lazydev', 'lsp', 'path', 'snippets' },
+    providers = {
+      lazydev = { name = 'LazyDev', module = 'lazydev.integrations.blink', score_offset = 100 },
+    },
+  },
   snippets = { preset = 'luasnip' },
   fuzzy = {
     -- Fallback to Lua on 32-bit ARM if Rust is not buildable

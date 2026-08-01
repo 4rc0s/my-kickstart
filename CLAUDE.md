@@ -115,6 +115,30 @@ Neovim restart, not just `:MasonToolsInstall`.
 System-installed LSPs (not managed by Mason) are added at the bottom of `lsp.lua` with an
 `executable` guard — see `nimls` and `gleam` as examples.
 
+### lua_ls workspace libraries are lazydev's job
+
+`lua/plugins/lsp.lua` sets up **lazydev.nvim** just above `lsp_servers`. It resolves LuaLS
+workspace libraries from the `require` statements and `---@module` annotations actually present
+in the buffer, so editing `lsp.lua` loads seven library paths rather than every runtime
+directory.
+
+**Do not add `workspace.library` back to the `lua_ls` config.** It used to hold
+`vim.api.nvim_get_runtime_file('', true)`, which handed LuaLS all 32 runtime dirs — ~3,300 files
+and ~650k lines of plugin source — to parse on first attach. (It also merged the `${3rd}` paths
+with `vim.tbl_extend`, which for two list tables overwrites indices 1 and 2 rather than
+appending, silently dropping the first two runtime paths. Use `vim.list_extend` for lists.)
+
+The `runtime` and `checkThirdParty` values that `on_init` still sets are deliberate: lazydev sets
+the same keys and wins, but it disables itself in any project shipping a `.luarc.json`, and those
+settings are the fallback when it does.
+
+Trigger `words` are Lua patterns matched line by line, so they must be specific — a bare `it`
+pulls the busted types into every buffer whose comments contain the English word. `describe%s*%(`
+matches the call, not the prose.
+
+The completion source is registered separately, in `sources.providers` in `lua/plugins/cmp.lua`.
+It reports itself disabled outside lazydev-attached buffers, so it costs nothing elsewhere.
+
 ### Adding a formatter
 
 Add to `formatters_by_ft` in `lua/plugins/format.lua`. If it needs auto-installation, add the
