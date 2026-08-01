@@ -17,11 +17,15 @@ require('blink.cmp').setup {
   keymap = { preset = 'default' },
   appearance = { nerd_font_variant = 'mono' },
   completion = { documentation = { auto_show = false, auto_show_delay_ms = 500 } },
-  -- lazydev (set up in plugins/lsp.lua) completes module names in `require` statements. Its
-  -- source reports itself disabled outside lazydev-attached buffers, so listing it in `default`
-  -- costs nothing in other filetypes. score_offset floats modules above lua_ls's own results.
+  -- lazydev (set up in plugins/lsp.lua) completes module names in `require` statements and
+  -- ---@module annotations. It is a Lua-only source, so it belongs in per_filetype rather than
+  -- default; `inherit_defaults` keeps the default list alongside it. score_offset floats modules
+  -- above lua_ls's own results.
   sources = {
-    default = { 'lazydev', 'lsp', 'path', 'snippets' },
+    default = { 'lsp', 'path', 'snippets' },
+    per_filetype = {
+      lua = { inherit_defaults = true, 'lazydev' },
+    },
     providers = {
       lazydev = { name = 'LazyDev', module = 'lazydev.integrations.blink', score_offset = 100 },
     },
