@@ -8,6 +8,29 @@ local function gh(repo) return 'https://github.com/' .. repo end
 vim.pack.add { gh 'j-hui/fidget.nvim' }
 require('fidget').setup {}
 
+local highlight_augroup = vim.api.nvim_create_augroup('whipsmart-lsp-highlight', { clear = true })
+
+local function supports_document_highlight(client, bufnr) return client:supports_method('textDocument/documentHighlight', bufnr) end
+
+local function has_document_highlight_client(bufnr, excluded_client_id)
+  for _, client in ipairs(vim.lsp.get_clients { bufnr = bufnr }) do
+    if client.id ~= excluded_client_id and supports_document_highlight(client, bufnr) then return true end
+  end
+  return false
+end
+
+vim.api.nvim_create_autocmd('LspDetach', {
+  group = vim.api.nvim_create_augroup('whipsmart-lsp-detach', { clear = true }),
+  callback = function(event)
+    local client = vim.lsp.get_client_by_id(event.data.client_id)
+    if client and supports_document_highlight(client, event.buf) and not has_document_highlight_client(event.buf, client.id) then
+      vim.lsp.util.buf_clear_references(event.buf)
+      vim.api.nvim_clear_autocmds { group = highlight_augroup, buffer = event.buf }
+      vim.b[event.buf].whipsmart_lsp_highlights = nil
+    end
+  end,
+})
+
 vim.api.nvim_create_autocmd('LspAttach', {
   group = vim.api.nvim_create_augroup('whipsmart-lsp-attach', { clear = true }),
   callback = function(event)
@@ -21,8 +44,8 @@ vim.api.nvim_create_autocmd('LspAttach', {
     map('grD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
 
     local client = vim.lsp.get_client_by_id(event.data.client_id)
-    if client and client:supports_method('textDocument/documentHighlight', event.buf) then
-      local highlight_augroup = vim.api.nvim_create_augroup('whipsmart-lsp-highlight', { clear = false })
+    if client and supports_document_highlight(client, event.buf) and not vim.b[event.buf].whipsmart_lsp_highlights then
+      vim.b[event.buf].whipsmart_lsp_highlights = true
       vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
         buffer = event.buf,
         group = highlight_augroup,
@@ -32,13 +55,6 @@ vim.api.nvim_create_autocmd('LspAttach', {
         buffer = event.buf,
         group = highlight_augroup,
         callback = vim.lsp.buf.clear_references,
-      })
-      vim.api.nvim_create_autocmd('LspDetach', {
-        group = vim.api.nvim_create_augroup('whipsmart-lsp-detach', { clear = true }),
-        callback = function(event2)
-          vim.lsp.buf.clear_references()
-          vim.api.nvim_clear_autocmds { group = 'whipsmart-lsp-highlight', buffer = event2.buf }
-        end,
       })
     end
 
