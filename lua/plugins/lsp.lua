@@ -123,6 +123,13 @@ if has 'npm' or has 'pnpm' or has 'yarn' or has 'bun' then vim.list_extend(mason
 
 if has 'cargo' then table.insert(mason_tools, 'rust-analyzer') end
 
+-- Do not activate an LSP whose runtime is unavailable on this machine.
+local server_runtime_available = {
+  gopls = has 'go',
+  basedpyright = has 'python3',
+  ts_ls = has 'npm' or has 'pnpm' or has 'yarn' or has 'bun',
+}
+
 -- Filter out disabled tools/servers (opt-out)
 local disabled_servers = vim.g.disabled_lsp_servers or {}
 local function is_disabled(name)
@@ -145,7 +152,7 @@ require('mason').setup {}
 require('mason-tool-installer').setup { ensure_installed = filtered_mason_tools }
 
 for name, server in pairs(servers) do
-  if not is_disabled(name) then
+  if not is_disabled(name) and server_runtime_available[name] ~= false then
     vim.lsp.config(name, server)
     vim.lsp.enable(name)
   end
