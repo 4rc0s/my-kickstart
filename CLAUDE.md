@@ -69,6 +69,57 @@ If a merge conflict occurs on the lockfile during a pull:
    the lockfile you just accepted), confirm with `:write`, then `:restart`.
 3. Commit the resolved lockfile.
 
+#### When both machines committed a `pack update` (diverged branches)
+
+`git status` reports "your branch and 'origin/master' have diverged, and have N and M different
+commits each". This is the common case when two machines each ran `<leader>ps` and committed.
+History here is a linear chain of lockfile-only commits, so **rebase, do not merge** — a merge
+commit adds nothing over a lockfile whose entries are individually newer or older.
+
+```bash
+git fetch origin
+git rebase origin/master
+```
+
+**`--ours` and `--theirs` are inverted during a rebase.** In the merge case above, `--theirs` is
+upstream. Mid-rebase, git has checked out upstream and is replaying your commit onto it, so
+`--ours` is **origin/master** and `--theirs` is **your local commit**. Resolving a rebase conflict
+the way the merge steps describe silently discards your side.
+
+Decide per conflicting entry rather than by which commit is newer — two machines can update at
+times that do not reflect which revision is further along. Ask git directly, in the plugin's own
+clone under `~/.local/share/nvim/site/pack/core/opt/<plugin>`:
+
+```bash
+git -C ~/.local/share/nvim/site/pack/core/opt/<plugin> fetch origin
+git -C ~/.local/share/nvim/site/pack/core/opt/<plugin> \
+  merge-base --is-ancestor <their-rev> <your-rev> && echo "your rev supersedes theirs"
+```
+
+When one rev is an ancestor of the other, taking the descendant loses nothing. When they have
+diverged (neither is an ancestor), take upstream's and re-run `<leader>ps` afterwards to land on a
+revision that is genuinely newest.
+
+Then, once every entry is decided:
+```bash
+git add nvim-pack-lock.json
+git rebase --continue
+```
+
+Verify before pushing — a mis-resolved lockfile is valid-looking JSON that pins the wrong code:
+```bash
+python3 -m json.tool nvim-pack-lock.json > /dev/null   # no conflict markers, still parses
+git diff origin/master HEAD -- nvim-pack-lock.json     # only the entries you intended
+```
+
+`<leader>pr` is **not** needed on the machine that did the rebase when it kept its own revisions —
+its plugins are already at them (`git -C <plugin> rev-parse HEAD` to confirm). The **other**
+machine needs `<leader>pr` after pulling. If the rebase took upstream's revision for any entry,
+that machine needs `<leader>pr` too.
+
+`git rebase --abort` restores the pre-rebase state, and the original commit stays in `git reflog`
+after a completed rebase.
+
 ## Architecture
 
 ### Adding an LSP server
