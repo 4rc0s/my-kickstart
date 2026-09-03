@@ -20,6 +20,7 @@ Neovim 0.12+ `vim.pack` system. It replaced a kickstart.nvim + Lazy.nvim setup o
 - `<leader>pr` — restore packages to lockfile revisions (`vim.pack.update(nil, { target = 'lockfile' })`)
 - `<leader>pi` — inspect package status (offline)
 - `:checkhealth whipsmart` — diagnose config/plugin issues
+- `<leader>pu` — update Mason tools now (`:MasonToolsUpdate`); otherwise this runs itself once a day
 - `:Mason` — manage LSP servers, linters, formatters
 - `:TSUpdate` — update treesitter parsers
 - `:ConformInfo` — show active formatters for current buffer
@@ -162,6 +163,19 @@ local runtimes = {
 
 Because `runtimes` is evaluated once at startup, installing a new language runtime needs a
 Neovim restart, not just `:MasonToolsInstall`.
+
+### Mason tools update themselves once a day
+
+Mason binaries are per-machine and nothing outside Neovim updates them, so `lsp.lua` does: a
+single `check_install` call two seconds after `VimEnter` installs anything missing on every launch
+and, when the stamp file `stdpath('state')/mason-tools-updated` is older than a day, also updates
+everything already installed. `<leader>pu` forces an update immediately.
+
+`run_on_start` is turned off because that call replaces it. The plugin's own `auto_update` +
+`debounce_hours` pair is deliberately not used: its debounce gates the whole check, so a newly
+added `lsp_servers` row would wait up to a day to be installed. The stamp is touched *before* the
+run so an offline launch does not retry and re-notify on every start that day, and synchronously
+at `VimEnter` so two instances launched together cannot both decide to update.
 
 System-installed LSPs (not managed by Mason) are added at the bottom of `lsp.lua` with an
 `executable` guard — see `nimls` and `gleam` as examples.

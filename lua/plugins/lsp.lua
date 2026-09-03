@@ -211,7 +211,38 @@ end
 
 -- mason.setup puts Mason's bin/ on PATH, so it must precede the vim.lsp.enable loop.
 require('mason').setup {}
-require('mason-tool-installer').setup { ensure_installed = mason_tools }
+require('mason-tool-installer').setup { ensure_installed = mason_tools, run_on_start = false }
+
+-- Mason binaries are per-machine and nothing outside Neovim updates them, so this config does:
+-- one check_install per launch, which installs anything missing and — at most once a day — also
+-- updates everything already installed. `run_on_start` is off because this call replaces it.
+--
+-- Not the plugin's own `auto_update` + `debounce_hours`: that debounce gates the *whole* check,
+-- so a server added to `lsp_servers` would wait up to a day to be installed, breaking the
+-- "add one row, it installs on the next launch" contract above. Here the install half runs
+-- every launch and only the update half is stamped.
+--
+-- The stamp is touched before the run, not on completion, so an offline launch does not retry
+-- (and re-notify) on every start that day; a missed day is fine. It is touched synchronously at
+-- VimEnter so two instances launched together cannot both decide to update.
+local mason_update_stamp = vim.fs.joinpath(vim.fn.stdpath 'state', 'mason-tools-updated')
+local function mason_update_due()
+  local st = vim.uv.fs_stat(mason_update_stamp)
+  return st == nil or os.time() - st.mtime.sec >= 24 * 60 * 60
+end
+
+vim.api.nvim_create_autocmd('VimEnter', {
+  group = vim.api.nvim_create_augroup('whipsmart-mason-tools', { clear = true }),
+  once = true,
+  callback = function()
+    local update = mason_update_due()
+    if update then vim.fn.writefile({}, mason_update_stamp) end
+    -- Deferred so the registry refresh and version checks never sit in the startup path.
+    vim.defer_fn(function() require('mason-tool-installer').check_install(update) end, 2000)
+  end,
+})
+
+vim.keymap.set('n', '<leader>pu', '<cmd>MasonToolsUpdate<cr>', { desc = '[P]ackage [U]pdate Mason tools' })
 
 for name, config in pairs(active_servers) do
   vim.lsp.config(name, config)
